@@ -1,0 +1,34 @@
+<!Doctype html>
+<head>
+	<title>DIY Twiangulate Results Page </title>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+</head>
+<body>
+
+<h1>This page will display the results of Twitter API calls</h1>
+<div id="output"></div> 
+<script> 
+
+	$.ajax({
+		type:"GET",
+		url: "https://api.twitter.com/1.1/friends/ids.json?",
+		data: ({
+			screen_name: "mikeallen",
+			}),
+		beforeSend: function(){
+		},
+		success: function(data,textStatus, XMLHttpRequest){
+			taskID = $.parseJSON(data)
+			document.getElementByID("output").innerHTML = taskID; 
+			console.log(data);
+			console.log(taskID);
+		}
+		
+		
+		
+		});
+
+</script> 
+</body>
+</html> 
+
