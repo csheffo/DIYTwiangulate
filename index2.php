@@ -56,7 +56,7 @@ function getProfile($conn, $data){
 	//TODO: check if you have an array, and if not, do this without the iterator
 	foreach ($data as $key=>$value){
 			$profile = $conn->get("users/lookup", ["user_id" => "$value"]);
-			if (property_exists($profile, "errors")){
+			if (!(is_array($profile)) and property_exists($profile, "errors")){
 				$message = "In getProfile: ";
 				foreach ($profile->errors as $key=>$error){
 					$message .= sprintf("<p>%s (ID: %d)</p>", $error->message, $error->code);
