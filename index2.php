@@ -1,4 +1,4 @@
-<!Doctype html>
+<!DOCTYPE html>
 <head>
 	<title>DIY Twiangulate Results Page </title>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
@@ -6,102 +6,107 @@
 <body>
 
 <h1>This page will display the results of Twitter API calls</h1>
-<div id="output"></div> 
+<div id="output"></div>
 
 <?php
 
 ini_set("display_errors", "On");
 
 #authenticate API call using Abraham PHP library
-
 require "twitteroauth/autoload.php";
-
 use Abraham\TwitterOAuth\TwitterOAuth;
+use Abraham\TwitterOAuth\TwitterOAuthException;
 
-define("CONSUMER_KEY", "GP7IkgquvX4prwlQuPm0QKVDc");
+//TODO: create secrets file
+//TODO: a LOT more error checking
 
-define("CONSUMER_SECRET", "wcLpJZl5bqsVDPFym94FKcAAugrK9FfWWfv9hYtQavghXhxofJ");
+function getTwitterConnection() {
+	# connect to Twitter using the provided library.
+	# Returns: Twitter connection object
+	$consumer_key = "GP7IkgquvX4prwlQuPm0QKVDc";
+	$consumer_secret = "wcLpJZl5bqsVDPFym94FKcAAugrK9FfWWfv9hYtQavghXhxofJ";
+	$access_token = "838555939-oVj5qKEc5Ke2sgqZ5mVMQnq2TSVFWRJoDE6GWZE8";
+	$access_token_secret = "tsgfshSvYE3csChivPUN0qokkHoR9ED9THdaNFQp6ndgW";
 
-$access_token = "838555939-oVj5qKEc5Ke2sgqZ5mVMQnq2TSVFWRJoDE6GWZE8";
+	$connection = new TwitterOAuth($consumer_key, $consumer_secret, $access_token, $access_token_secret);
 
-$access_token_secret = "tsgfshSvYE3csChivPUN0qokkHoR9ED9THdaNFQp6ndgW";
+	return $connection;
+}
 
-#Create call for 5000 of person 1's friends
+function getFriends($conn, $uid) {
+	# get the list of people that uid follows, using connection.
+	# Returns: array from Twitter of friend objects. Format defined by API.
+	$friends = [];
+	$friends = $conn->get("friends/ids", ["screen_name" => $uid,count => 	5000]);
+	if (property_exists($friends, "errors")){
+		$message = "In getFriends: ";
+		foreach ($friends->errors as $key=>$error){
+			$message .= sprintf("<p>%s (ID: %d)</p>", $error->message, $error->code);
+		}
+		throw new TwitterOAuthException ($message);
+	}
+	return $friends;
+}
 
-$connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $access_token, $access_token_secret);
-$content = $connection->get("account/verify_credentials"); #this gets my account info
-
-$friends = [];
-
-$friends = $connection->get("friends/ids", ["screen_name" => "sarahkliff",count => 	5000]);
-
-#var_dump($friends); 
-
-$friends2 = [];
-
-$friends2 = $connection->get("friends/ids", ["screen_name" => "ddiamond", count=>5000]);
-
-var_dump($friends2);
-
-#declare a joined array that is the intersection of both friends lists
-
-$joinedArray = array_intersect($friends->ids, $friends2->ids);
-
-#Iterate through the joined array and print the account details by user id 
-
-function OutputProfile ($data){
+function getProfile($conn, $data){
+	# get a list of user profiles when provided an array of user_ids in $data.
+	# Returns: array of profile objects from Twitter. Format defined by API.
 	$profileResults = [];
 
-	$connection2 = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $access_token, 
-	$access_token_secret);					        			
-        	
-		foreach ($data as $key=>$value){
-		
-			$content2 = $connection2->get("users/lookup", ["user_id" => "$value"]); 
-			array_push($profileResults, $content2); 
-	
-		}
-	return $profileResults; 
-} 
+	//TODO: check if you have an array, and if not, do this without the iterator
+	foreach ($data as $key=>$value){
+			$profile = $conn->get("users/lookup", ["user_id" => "$value"]);
+			if (!(is_array($profile)) and property_exists($profile, "errors")){
+				$message = "In getProfile: ";
+				foreach ($profile->errors as $key=>$error){
+					$message .= sprintf("<p>%s (ID: %d)</p>", $error->message, $error->code);
+				}
+				throw new TwitterOAuthException ($message);
+			}
+			array_push($profileResults, $profile);
+	}
 
-$screenNames = array(); 
+	return $profileResults;
+}
 
 function GetScreenname ($profiles) {
-	
-	global $screenNames; 
-	
+	# debug function that dumps screennames from array of Twitter user objects
+	# Returns: nothing
 	foreach ($profiles as $key=>$value){
-	
-		#var_dump($value); 
+		#var_dump($value);
 		foreach ($value as $item=>$i){
-		
 			var_dump($i->screen_name);
-		}
-	
-	} 
-	
+		} #end foreach element in object
+	} #end foreach object in array
 }
-	
-	
-	
-	#foreach ($profiles as $key=>$value){
-	
-				#array_push($screenNames, $value->screen_name);
-	
-	#}
-	
-	#return $screenNames;
-	
 
-$results = OutputProfile($joinedArray);
+# BEGIN MAIN
+try {
+	# putting the accts to check in variables for now, so we can use forms later
+	$acct1 = "mattboggie";
+	$acct2 = "alexislloyd";
 
-#print_r($results); 
+	$connection = getTwitterConnection();
+	$list1 = getFriends($connection, $acct1);
+	$list2 = getFriends($connection, $acct2);
+	$complist = array_intersect($list1->ids, $list2->ids);
 
-$names = GetScreenname($results); 
+	# the array_slice here is used to pass a small list in during debugging
+	# to prevent using up all our API calls in a short period
+	$details = getProfile($connection, array_slice($complist, 0, 5));
 
-print_r($names); 
+	# TODO: Catherine, expand on the block below to show more details as you see fit!
+	printf("<p>List of common friends between %s and %s:</p><ul>", $acct1, $acct2);
+	foreach($details as $key=>$friend){
+		printf("<li>%s</li>", $friend[0]->name);
+	}
+	print("<p>");
+
+} catch (TwitterOAuthException $e){
+	printf("Twitter call failed: %s</p>", $e->getMessage());
+}
+
 
 ?>
 </body>
-</html> 
-
+</html>
